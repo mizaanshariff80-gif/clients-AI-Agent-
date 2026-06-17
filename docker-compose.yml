@@ -1,0 +1,9 @@
+services:
+  nexora:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PORT=3001
+    restart: unless-stopped
