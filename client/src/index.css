@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #080d1a;
+  color: #e2e8f0;
+  font-family: "Inter", sans-serif;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #0c1020;
+}
+::-webkit-scrollbar-thumb {
+  background: #243050;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+.agent-card-glow {
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.05), 0 4px 20px rgba(0,0,0,0.4);
+}
+
+.orb-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orb-core {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #a78bfa, #7c3aed 50%, #1e1b4b 100%);
+  animation: orb-pulse 3s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
+}
+
+.orb-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(139,92,246,0.3);
+  animation: orb-spin 8s linear infinite;
+}
+
+.orb-ring-1 {
+  width: 100px;
+  height: 100px;
+  border-color: rgba(139,92,246,0.4);
+  animation-duration: 8s;
+}
+
+.orb-ring-2 {
+  width: 116px;
+  height: 116px;
+  border-color: rgba(99,102,241,0.2);
+  animation-duration: 12s;
+  animation-direction: reverse;
+}
+
+.working-pulse {
+  animation: working-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes working-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.graph-canvas {
+  cursor: grab;
+}
+.graph-canvas:active {
+  cursor: grabbing;
+}
+
+.status-dot-working {
+  background: #22c55e;
+  box-shadow: 0 0 6px #22c55e;
+}
+.status-dot-waiting {
+  background: #f59e0b;
+  box-shadow: 0 0 6px #f59e0b;
+}
+.status-dot-idle {
+  background: #6b7280;
+}
+
+.card-hover {
+  transition: border-color 0.2s, background-color 0.2s;
+}
+.card-hover:hover {
+  border-color: rgba(255,255,255,0.12) !important;
+  background-color: rgba(255,255,255,0.03);
+}
