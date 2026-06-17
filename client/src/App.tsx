@@ -29,7 +29,15 @@ export default function App() {
 
   const store = useAppStore();
 
-  const { send } = useWebSocket("ws://localhost:3001", {
+  const wsUrl = (() => {
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = window.location.hostname;
+    // In Vite dev, use proxy path; in production/direct access use backend port
+    if (window.location.port === "5173") return `${proto}//${host}:3001`;
+    return `${proto}//${host}:3001`;
+  })();
+
+  const { send } = useWebSocket(wsUrl, {
     onConnected: (connected) => store.setWsConnected(connected),
     onInit: (data: unknown) => {
       const d = data as {

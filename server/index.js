@@ -3,6 +3,11 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import cors from "cors";
 import { createServer } from "http";
+import { existsSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 import { AgentSystem, AGENTS } from "./agents/agentSystem.js";
 import { startAgentServer } from "./a2a/agentServer.js";
@@ -24,8 +29,14 @@ function startAllAgentServers(onStatusChange) {
 
 // ─── Main WebSocket + REST dashboard server ────────────────────────────────
 const app = express();
-app.use(cors());
+app.use(cors({ origin: "*" }));
 app.use(express.json());
+
+// Serve built React frontend if available (production mode)
+const distPath = join(__dirname, "../client/dist");
+if (existsSync(distPath)) {
+  app.use(express.static(distPath));
+}
 
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
@@ -116,11 +127,21 @@ app.get("/api/agent-card/:agentId", async (req, res) => {
   }
 });
 
+// Serve React SPA for all non-API routes (catch-all for client-side routing)
+if (existsSync(distPath)) {
+  app.get("*", (req, res) => {
+    if (!req.path.startsWith("/api")) {
+      res.sendFile(join(distPath, "index.html"));
+    }
+  });
+}
+
 // ─── Start main server ────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`\n🚀 Nexora AI System`);
-  console.log(`   Dashboard server : http://localhost:${PORT}`);
+  console.log(`   Dashboard + API  : http://localhost:${PORT}`);
+  console.log(`   (also on 0.0.0.0 — accessible from local network)`);
   console.log(`   A2A Agent servers:`);
   Object.entries(AGENT_CONFIGS).forEach(([id, cfg]) => {
     console.log(`     ${cfg.name.padEnd(14)} → http://localhost:${cfg.port}`);
