@@ -133,6 +133,8 @@ export default function App() {
             contextWindow={store.contextWindow}
             tasks={store.tasks}
             onChatWithAgent={openChat}
+            chatMessages={store.chatMessages}
+            onSendMessage={sendMessage}
           />
         );
       case "lead_pipeline":
