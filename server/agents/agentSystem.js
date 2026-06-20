@@ -40,7 +40,7 @@ export class AgentSystem {
 
     const response = await anthropic.messages.create({
       model: CEO_CONFIG.model,
-      max_tokens: 1500,
+      max_tokens: 3000,
       system: CEO_CONFIG.systemPrompt,
       messages: this.ceoHistory.slice(-14)
     });

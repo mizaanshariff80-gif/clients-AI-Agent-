@@ -197,7 +197,7 @@ function extractText(message) {
 async function callClaude(config, history) {
   const response = await anthropic.messages.create({
     model: config.model,
-    max_tokens: 1024,
+    max_tokens: 2048,
     system: config.systemPrompt,
     messages: history.slice(-12)
   });
