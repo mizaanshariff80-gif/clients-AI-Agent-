@@ -13,11 +13,10 @@ import { AgentSystem, AGENTS } from "./agents/agentSystem.js";
 import { startAgentServer } from "./a2a/agentServer.js";
 import { AGENT_CONFIGS } from "./a2a/agentConfigs.js";
 import { mockLeads, mockTasks, mockContentPosts, mockContentGraph, mockKnowledgeNodes } from "./data/mockData.js";
-
-// ─── Boot all specialist agent A2A servers ─────────────────────────────────
-// Each agent runs as its own HTTP server on its own port with:
-//   GET  /.well-known/agent-card.json  → A2A discovery
-//   POST /                             → JSON-RPC tasks/send, tasks/get, tasks/sendSubscribe
+import {
+  initLeadStore, getAllLeads, getAllEmails, getAllFollowups,
+  getPipelineStats, cancelFollowup
+} from "./tools/leadStore.js";
 
 const agentServers = {};
 
@@ -27,12 +26,11 @@ function startAllAgentServers(onStatusChange) {
   }
 }
 
-// ─── Main WebSocket + REST dashboard server ────────────────────────────────
+// ─── Main server ──────────────────────────────────────────────────────────────
 const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-// Serve built React frontend if available (production mode)
 const distPath = join(__dirname, "../client/dist");
 if (existsSync(distPath)) {
   app.use(express.static(distPath));
@@ -40,7 +38,6 @@ if (existsSync(distPath)) {
 
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
-
 const clients = new Set();
 
 function broadcast(data) {
@@ -48,20 +45,21 @@ function broadcast(data) {
   clients.forEach(ws => { if (ws.readyState === 1) ws.send(msg); });
 }
 
+// Init lead store so agents can broadcast live updates to dashboard
+initLeadStore(broadcast);
+
 const agentSystem = new AgentSystem(broadcast);
 
-// Start all A2A agent servers, forwarding status changes to the broadcast
 startAllAgentServers((agentId, status, currentTask) => {
   agentSystem.agentStatuses[agentId] = status;
   broadcast({ type: "agent_status", agentId, status, currentTask });
 });
 
-// ─── WebSocket handler ────────────────────────────────────────────────────
+// ─── WebSocket ────────────────────────────────────────────────────────────────
 wss.on("connection", (ws) => {
   clients.add(ws);
   console.log(`[WS] Client connected (total: ${clients.size})`);
 
-  // Send full system state to new client
   ws.send(JSON.stringify({
     type: "init",
     agents: Object.values(AGENTS).map(a => ({
@@ -95,18 +93,35 @@ wss.on("connection", (ws) => {
   });
 });
 
-// ─── REST API endpoints ───────────────────────────────────────────────────
+// ─── REST API ─────────────────────────────────────────────────────────────────
 app.get("/api/agents", (_, res) => res.json(
   Object.values(AGENTS).map(a => ({
     id: a.id, name: a.name, role: a.role, color: a.color, model: a.model,
     port: a.port, skills: a.skills || []
   }))
 ));
-app.get("/api/leads", (_, res) => res.json(mockLeads));
-app.get("/api/tasks", (_, res) => res.json(mockTasks));
-app.get("/api/content", (_, res) => res.json({ posts: mockContentPosts, graph: mockContentGraph }));
-app.get("/api/knowledge", (_, res) => res.json({ nodes: mockKnowledgeNodes }));
-app.get("/api/stats", (_, res) => res.json({
+
+// Lead Pipeline — live data from agents
+app.get("/api/leads", (_, res) => {
+  const agentLeads = getAllLeads();
+  // Merge with mock leads if no agent leads yet
+  res.json(agentLeads.length > 0 ? agentLeads : mockLeads);
+});
+app.get("/api/pipeline", (_, res) => res.json({
+  leads: getAllLeads(),
+  emails: getAllEmails(),
+  followups: getAllFollowups(),
+  stats: getPipelineStats()
+}));
+app.delete("/api/pipeline/followup/:id", (req, res) => {
+  const followup = cancelFollowup(req.params.id);
+  res.json(followup || { error: "Follow-up not found" });
+});
+
+app.get("/api/tasks",    (_, res) => res.json(mockTasks));
+app.get("/api/content",  (_, res) => res.json({ posts: mockContentPosts, graph: mockContentGraph }));
+app.get("/api/knowledge",(_, res) => res.json({ nodes: mockKnowledgeNodes }));
+app.get("/api/stats",    (_, res) => res.json({
   stats: agentSystem.stats,
   routes: agentSystem.routes,
   reads: agentSystem.reads,
@@ -115,7 +130,13 @@ app.get("/api/stats", (_, res) => res.json({
   agentStatuses: agentSystem.agentStatuses
 }));
 
-// Proxy: discover agent cards from the dashboard
+// Check email + apollo config status
+app.get("/api/config/status", (_, res) => res.json({
+  apolloConfigured: !!process.env.APOLLO_API_KEY,
+  emailConfigured: !!(process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD),
+  emailUser: process.env.EMAIL_USER || null
+}));
+
 app.get("/api/agent-card/:agentId", async (req, res) => {
   const cfg = AGENT_CONFIGS[req.params.agentId];
   if (!cfg) return res.status(404).json({ error: "Agent not found" });
@@ -127,25 +148,22 @@ app.get("/api/agent-card/:agentId", async (req, res) => {
   }
 });
 
-// Serve React SPA for all non-API routes (catch-all for client-side routing)
 if (existsSync(distPath)) {
   app.get("*", (req, res) => {
-    if (!req.path.startsWith("/api")) {
-      res.sendFile(join(distPath, "index.html"));
-    }
+    if (!req.path.startsWith("/api")) res.sendFile(join(distPath, "index.html"));
   });
 }
 
-// ─── Start main server ────────────────────────────────────────────────────
+// ─── Start ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`\n🚀 Nexora AI System`);
   console.log(`   Dashboard + API  : http://localhost:${PORT}`);
-  console.log(`   (also on 0.0.0.0 — accessible from local network)`);
   console.log(`   A2A Agent servers:`);
-  Object.entries(AGENT_CONFIGS).forEach(([id, cfg]) => {
+  Object.entries(AGENT_CONFIGS).forEach(([, cfg]) => {
     console.log(`     ${cfg.name.padEnd(14)} → http://localhost:${cfg.port}`);
   });
-  console.log(`   API key          : ${process.env.ANTHROPIC_API_KEY?.slice(0, 20)}...`);
+  console.log(`   Apollo.io        : ${process.env.APOLLO_API_KEY ? "✓ configured" : "✗ APOLLO_API_KEY missing"}`);
+  console.log(`   Email (Gmail)    : ${process.env.EMAIL_USER ? `✓ ${process.env.EMAIL_USER}` : "✗ EMAIL_USER missing"}`);
   console.log();
 });
