@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Multi-AI Voice Agent</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>Multi-AI Voice Agent</h1>
+        <p class="sub">Talk to Claude, ChatGPT, Kimi & Google Maps — with your voice.</p>
+      </header>
+
+      <section class="controls">
+        <label>
+          Model
+          <select id="model">
+            <option value="auto">Auto (Claude orchestrator + tools)</option>
+            <option value="claude">Claude only</option>
+            <option value="chatgpt">ChatGPT only</option>
+            <option value="kimi">Kimi only</option>
+          </select>
+        </label>
+
+        <label>
+          Voice
+          <select id="voice"></select>
+        </label>
+
+        <label class="check">
+          <input id="autospeak" type="checkbox" checked />
+          Speak replies aloud
+        </label>
+      </section>
+
+      <section id="transcript" class="transcript" aria-live="polite"></section>
+
+      <section class="composer">
+        <button id="mic" class="mic" title="Push to talk">
+          <span class="dot"></span>
+          <span id="mic-label">Hold to talk</span>
+        </button>
+        <form id="text-form" class="text-form">
+          <input id="text-input" type="text" placeholder="…or type here and press Enter" autocomplete="off" />
+          <button type="submit">Send</button>
+        </form>
+      </section>
+
+      <footer id="status" class="status">Ready.</footer>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
