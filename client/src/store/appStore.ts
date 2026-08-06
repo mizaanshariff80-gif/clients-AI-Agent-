@@ -7,7 +7,8 @@ export const AGENT_DEFS = [
   { id: "cmo", name: "CMO", role: "Market Voice", color: "#f97316", model: "claude-haiku-4-5", icon: "📣" },
   { id: "sales_rep", name: "Sales Rep", role: "Revenue Ops", color: "#ec4899", model: "claude-haiku-4-5", icon: "💰" },
   { id: "dev", name: "Dev", role: "Build System", color: "#06b6d4", model: "claude-haiku-4-5", icon: "⚙" },
-  { id: "data_analyst", name: "Data Analyst", role: "Signal Layer", color: "#6366f1", model: "claude-haiku-4-5", icon: "📊" }
+  { id: "data_analyst", name: "Data Analyst", role: "Signal Layer", color: "#6366f1", model: "claude-haiku-4-5", icon: "📊" },
+  { id: "front_desk", name: "Front Desk", role: "Reviews + Reception", color: "#14b8a6", model: "claude-sonnet-4-6", icon: "☎" }
 ];
 
 export const AGENT_DESCRIPTIONS: Record<string, string> = {
@@ -16,7 +17,8 @@ export const AGENT_DESCRIPTIONS: Record<string, string> = {
   cmo: "Turns strategy into content angles, campaigns, and publish-ready drafts.",
   sales_rep: "Qualifies leads, drafts outreach, and tracks follow-up opportunities.",
   dev: "Builds dashboards, integrations, scripts, and verifies technical changes.",
-  data_analyst: "Analyzes performance, trends, records, and operational signal quality."
+  data_analyst: "Analyzes performance, trends, records, and operational signal quality.",
+  front_desk: "Answers customers, books appointments, and manages Google reviews — two agents in one, fully editable."
 };
 
 export function createInitialAgents(): Agent[] {

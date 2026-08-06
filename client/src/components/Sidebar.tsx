@@ -15,6 +15,7 @@ const NAV_ITEMS: { id: NavItem; label: string; icon: string }[] = [
   { id: "tasks", label: "Tasks", icon: "☰" },
   { id: "schedule", label: "Schedule", icon: "◷" },
   { id: "tools", label: "Tools", icon: "⚙" },
+  { id: "front_desk", label: "Front Desk", icon: "☎" },
   { id: "lead_pipeline", label: "Lead Pipeline", icon: "⬡" },
   { id: "content_analytics", label: "Content Analytics", icon: "▣" },
   { id: "content", label: "Content", icon: "+" },

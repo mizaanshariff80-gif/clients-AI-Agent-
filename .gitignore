@@ -5,3 +5,6 @@ server/node_modules/
 server/.env
 *.log
 .DS_Store
+
+# Front Desk runtime data (per-deployment: settings, reviews, bookings)
+server/data/frontdesk.*.json

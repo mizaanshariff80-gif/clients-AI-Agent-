@@ -6,6 +6,7 @@ import LeadPipeline from "./views/LeadPipeline";
 import ContentAnalytics from "./views/ContentAnalytics";
 import KnowledgeVault from "./views/KnowledgeVault";
 import TasksView from "./views/TasksView";
+import FrontDesk from "./views/FrontDesk";
 import ChatView from "./views/ChatView";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useAppStore } from "./store/appStore";
@@ -17,6 +18,7 @@ export type NavItem =
   | "tasks"
   | "schedule"
   | "tools"
+  | "front_desk"
   | "lead_pipeline"
   | "content_analytics"
   | "content"
@@ -137,6 +139,8 @@ export default function App() {
             onSendMessage={sendMessage}
           />
         );
+      case "front_desk":
+        return <FrontDesk />;
       case "lead_pipeline":
         return <LeadPipeline />;
       case "content_analytics":

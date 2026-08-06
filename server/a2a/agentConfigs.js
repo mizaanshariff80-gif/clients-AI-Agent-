@@ -1,7 +1,12 @@
 /**
  * A2A Agent Configuration Registry
  * Each entry defines the agent's identity, port, Claude model, system prompt, and skills.
+ *
+ * `systemPrompt` and `model` may be functions — the Front Desk agent uses that
+ * to rebuild its brief from the operator's saved settings on every single turn.
  */
+
+import { buildFrontDeskPrompt, loadConfig } from "../config/frontDeskConfig.js";
 
 export const AGENT_CONFIGS = {
   researcher: {
@@ -277,6 +282,43 @@ You answer to the CEO Orchestrator or directly to the operator. Always end with 
         examples: ["Generate a weekly signal report for the growth ops team"]
       }
     ]
+  },
+
+  front_desk: {
+    id: "front_desk",
+    name: "Front Desk",
+    role: "Reviews + Reception",
+    color: "#14b8a6",
+    port: 3015,
+    // Model and prompt are read live from the operator's saved settings.
+    get model() { return loadConfig().model || "claude-sonnet-4-6"; },
+    description:
+      "Two agents in one: answers customers, books appointments and takes messages (AI Receptionist), and monitors, replies to, and requests Google reviews (Review Manager). Fully editable from Front Desk → Settings.",
+    systemPrompt: () => buildFrontDeskPrompt(),
+    skills: [
+      {
+        id: "ai_receptionist",
+        name: "AI Receptionist",
+        description: "Answers customer questions from the approved FAQ, checks real availability, books appointments, and takes messages when a human is needed.",
+        tags: ["reception", "booking", "appointments", "faq", "voice"],
+        examples: [
+          "Do you have anything Thursday afternoon?",
+          "Book Sarah Chen for a consultation Tuesday at 2pm — 555-0142",
+          "What are your Saturday hours and how much is a consultation?"
+        ]
+      },
+      {
+        id: "google_review_manager",
+        name: "Google Review Manager",
+        description: "Syncs Google reviews, drafts on-brand replies per star rating, posts approved replies, escalates negative reviews, and sends review requests to happy customers.",
+        tags: ["google", "reviews", "reputation", "replies"],
+        examples: [
+          "Sync my Google reviews and draft replies to everything unanswered",
+          "Reply to the 2-star from Marcus — offer to make it right offline",
+          "Send a review request to jane@example.com"
+        ]
+      }
+    ]
   }
 };
 
@@ -288,7 +330,7 @@ export const CEO_CONFIG = {
   port: 3001,
   model: "claude-sonnet-4-6",
   description: "Routes work, reviews context, coordinates specialists, and returns the operator debrief.",
-  systemPrompt: `You are the CEO / Orchestrator of Nexora AI System — the central brain coordinating five specialist agents.
+  systemPrompt: `You are the CEO / Orchestrator of Nexora AI System — the central brain coordinating six specialist agents.
 
 YOUR TEAM (use the right specialists for each task; you can also handle simple things yourself):
 - Researcher (Intel Gatherer) → market research, competitive intel, audience discovery, trends
@@ -296,6 +338,7 @@ YOUR TEAM (use the right specialists for each task; you can also handle simple t
 - Sales Rep (Revenue Ops) → lead scoring, outreach, follow-ups, objection handling
 - Dev (Build System) → code, automations, scripts, integrations, dashboard specs
 - Data Analyst (Signal Layer) → metrics, analysis, funnel diagnostics, reports
+- Front Desk (Reviews + Reception) → Google review replies/requests/reputation, AND inbound customer handling: FAQs, availability, appointment booking, taking messages. It has live tools and acts for real — route anything customer-facing or review-related here
 
 HOW YOU OPERATE:
 1. Read the operator's request carefully and figure out what they REALLY need.
@@ -312,7 +355,8 @@ ROUTING DECISION OUTPUT — respond ONLY in this exact JSON:
     "cmo": "specific subtask, or null",
     "sales_rep": "specific subtask, or null",
     "dev": "specific subtask, or null",
-    "data_analyst": "specific subtask, or null"
+    "data_analyst": "specific subtask, or null",
+    "front_desk": "specific subtask, or null"
   },
   "ceo_handles": "what YOU will do personally after agents complete",
   "operator_ack": "Brief acknowledgment to the operator that work has started"
