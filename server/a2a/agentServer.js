@@ -17,6 +17,7 @@ import {
   recordEmail, scheduleFollowup, getAllFollowups,
   getPipelineStats
 } from "../tools/leadStore.js";
+import { FRONT_DESK_TOOLS, executeFrontDeskTool } from "../tools/frontDeskTools.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -120,7 +121,7 @@ const SALES_TOOLS = [
 ];
 
 // ─── Tool executor ─────────────────────────────────────────────────────────────
-async function executeTool(name, input) {
+async function executeSalesTool(name, input) {
   try {
     switch (name) {
       case "search_us_leads": {
@@ -183,6 +184,15 @@ async function executeTool(name, input) {
     return `Tool error (${name}): ${err.message}`;
   }
 }
+
+/**
+ * Which agents get tools, and who runs them. Agents absent from this map are
+ * plain text-in/text-out specialists.
+ */
+const TOOLSETS = {
+  sales_rep:  { tools: SALES_TOOLS,      execute: executeSalesTool },
+  front_desk: { tools: FRONT_DESK_TOOLS, execute: executeFrontDeskTool }
+};
 
 // ─── In-memory task store ──────────────────────────────────────────────────────
 class TaskStore {
@@ -301,27 +311,40 @@ export function startAgentServer(config, port, onStatusChange) {
 }
 
 // ─── Claude call with tool use support ────────────────────────────────────────
-async function callClaudeWithTools(config, history) {
-  const useTools = config.id === "sales_rep";
-  const tools = useTools ? SALES_TOOLS : undefined;
+
+/** Prompt and model may be functions so edits from the dashboard apply per turn. */
+function resolvePrompt(config) {
+  return typeof config.systemPrompt === "function" ? config.systemPrompt() : config.systemPrompt;
+}
+function resolveModel(config) {
+  return typeof config.model === "function" ? config.model() : config.model;
+}
+
+/**
+ * Run one agent turn to completion, including the tool-use loop.
+ * `history` is not mutated — tool traffic stays in a local copy.
+ */
+export async function runAgentTurn(config, history, { maxTokens = 2048, systemSuffix = "" } = {}) {
+  const toolset = TOOLSETS[config.id];
+  const tools = toolset?.tools;
+  const model = resolveModel(config);
+  const system = resolvePrompt(config) + (systemSuffix ? `\n\n${systemSuffix}` : "");
 
   const messages = history.slice(-14);
   let response = await anthropic.messages.create({
-    model: config.model,
-    max_tokens: 2048,
-    system: config.systemPrompt,
-    messages,
+    model, max_tokens: maxTokens, system, messages,
     ...(tools ? { tools } : {})
   });
 
-  // Agentic tool use loop
-  while (response.stop_reason === "tool_use") {
+  // Agentic tool use loop — capped so a confused turn can't spin forever.
+  let rounds = 0;
+  while (response.stop_reason === "tool_use" && rounds++ < 8) {
     const toolUseBlocks = response.content.filter(b => b.type === "tool_use");
     const toolResults = [];
 
     for (const block of toolUseBlocks) {
       console.log(`[${config.name}] → tool: ${block.name}`, JSON.stringify(block.input).slice(0, 120));
-      const result = await executeTool(block.name, block.input);
+      const result = await toolset.execute(block.name, block.input);
       console.log(`[${config.name}] ← result: ${String(result).slice(0, 120)}`);
       toolResults.push({ type: "tool_result", tool_use_id: block.id, content: String(result) });
     }
@@ -331,17 +354,17 @@ async function callClaudeWithTools(config, history) {
     messages.push({ role: "user", content: toolResults });
 
     response = await anthropic.messages.create({
-      model: config.model,
-      max_tokens: 2048,
-      system: config.systemPrompt,
-      messages,
-      tools
+      model, max_tokens: maxTokens, system, messages, tools
     });
   }
 
   // Extract final text
   const textBlock = response.content.find(b => b.type === "text");
   return textBlock?.text || "Task completed.";
+}
+
+async function callClaudeWithTools(config, history) {
+  return runAgentTurn(config, history);
 }
 
 function buildAgentCard(config) {
